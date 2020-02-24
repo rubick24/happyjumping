@@ -161,6 +161,7 @@ vec2 sdLalafell(in vec3 p) {
 vec2 opU(vec2 d1, vec2 d2) {
 	return (d1.x<d2.x) ? d1 : d2;
 }
+// return x for distance, y for material
 vec2 map(in vec3 pos) {
   vec2 res = sdLalafell(pos);
   vec2 plane = vec2(dot(pos, vec3(0., 1., 0.)) + 0.25, 1.);
@@ -183,23 +184,33 @@ vec3 calcNormal(in vec3 pos) {
   // return normalize(n);
 }
 
-vec2 castRay(in vec3 rayOrigin, in vec3 rayDirection) {
+vec3 castRay(in vec3 rayOrigin, in vec3 rayDirection) {
     vec2 res = vec2(-1.0,-1.0);
 
     float tmin = 0.001;
     float tmax = 20.0;
 
     float t = tmin;
+
+    float lastDistance = 1e10;
+    float edge = 0.;
+
     for(int i=0; i<256 && t<tmax; i++) {
       vec2 h = map(rayOrigin + rayDirection*t);
-      if (h.x < 0.001) {
+
+      if (lastDistance < 0.01 && h.x > lastDistance) {
+        edge = 1.;
+      }
+
+      if (h.x < tmin) {
         res = vec2(t, h.y);
         break;
       }
       t += h.x;
+      if (h.x < lastDistance) lastDistance = h.x;
     }
 
-    return res;
+    return vec3(res, edge);
 }
 
 void main() {
@@ -219,7 +230,7 @@ void main() {
   vec3 col = max(vec3(0.), vec3(0.4, 0.75, 1.) - 0.7 * rayDirection.y);
   col = mix(col, vec3(0.7, 0.75, 0.8), min(exp(-10.*rayDirection.y), 1.));
 
-  vec2 tm = castRay(rayOrigin, rayDirection);
+  vec3 tm = castRay(rayOrigin, rayDirection);
   if (tm.y > 0.0) {
     float t = tm.x;
     vec3 pos = rayOrigin + rayDirection * t;
@@ -249,6 +260,9 @@ void main() {
     vec3 bounce_col = vec3(0.7, 0.3, 0.2) * bounceDiffuse;
     col =  clamp(mate * sun_col + mate * sky_col + mate * bounce_col, 0., 1.);
     // col = vec3(sunShadow);
+  }
+  if (tm.z > 0.5) {
+    col = mix(vec3(0.), col, 0.1);
   }
   col = pow(col, vec3(0.4545));
   fragColor = vec4(col, 1.);
