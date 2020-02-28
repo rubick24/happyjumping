@@ -23,29 +23,14 @@ float smax(in float a, in float b, in float k) {
   float h = max(k - abs(a-b), 0.);
   return max(a, b) + h*h / (k*4.);
 }
-vec3 rotateX(in vec3 a, in vec3 b, in float rad) {
-  vec3 p = a - b;
-  vec3 r = vec3(
-    p.x,
-    p.y*cos(rad) - p.z*sin(rad),
-    p.y*sin(rad) + p.z*cos(rad));
-  return r + b;
-}
-vec3 rotateY(in vec3 a, in vec3 b, in float rad) {
-  vec3 p = a - b;
-  vec3 r = vec3(
-    p.z*sin(rad) + p.x*cos(rad),
-    p.y,
-    p.z*cos(rad) - p.x*sin(rad));
-  return r + b;
-}
-vec3 rotateZ(in vec3 a, in vec3 b, in float rad) {
-  vec3 p = a - b;
-  vec3 r = vec3(
-    p.x*cos(rad) - p.y*sin(rad),
-    p.x*sin(rad) + p.y*cos(rad),
-    p.z);
-  return r + b;
+
+// https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+vec3 rotate(in vec3 vv, in vec3 center, in vec3 axis, in float angle) {
+  vec3 v = vv - center;
+  float cosa = cos(angle);
+  float sina = sin(angle);
+  vec3 res = v * cosa + cross(axis, v) * sina + axis * dot(axis, v) * (1. - cosa);
+  return res + center;
 }
 
 float sdSphere(in vec3 p, in float radius) {
@@ -135,12 +120,15 @@ vec2 sdLalafell(in vec3 p) {
   vec3 h = p - center;
   vec3 sh = vec3(abs(h.x), h.yz);
 
-
   // neck
   float neck = sdSegment(h-vec3(0., 0., -0.01), vec3(0., 0.83, 0.), vec3(0., 0.88, 0.))-0.036;
   // body
-  float body = sdRoundCone(rotateX(h-vec3(0., 0.62, 0.03), vec3(0.), PI/18.), 0.135, 0.09, 0.16);
-  float cut1 = sdRoundCone(rotateX(h-vec3(0., 0.62, -0.05), vec3(0.), -PI/24.), 0.135, 0.09, 0.16);
+  float body = sdRoundCone(
+    rotate(h-vec3(0., 0.62, 0.03), vec3(0.), vec3(1., 0., 0.), PI/18.),
+    0.135, 0.09, 0.16);
+  float cut1 = sdRoundCone(
+    rotate(h-vec3(0., 0.62, -0.05), vec3(0.), vec3(1., 0., 0.), -PI/24.),
+    0.135, 0.09, 0.16);
   body = smax(cut1, body, 0.03);
 
   // head
@@ -150,7 +138,9 @@ vec2 sdLalafell(in vec3 p) {
   // leg0
   float leg0 = sdSphere(sh-vec3(0.056, 0.555, -0.02), 0.08);
   // leg1
-  float leg1 = sdRoundCone(rotateX(sh-vec3(0.075, 0.33, 0.), vec3(0.075, 0.33, 0.), -PI/32.), 0.04, 0.065, 0.17);
+  float leg1 = sdRoundCone(
+    rotate(sh-vec3(0.075, 0.33, 0.), vec3(0.075, 0.33, 0.), vec3(1., 0., 0.), -PI/32.),
+    0.04, 0.065, 0.17);
   res.x = smin(leg0, min(res.x, leg1), 0.02);
   // leg2
 
@@ -184,33 +174,46 @@ vec3 calcNormal(in vec3 pos) {
   // return normalize(n);
 }
 
-vec3 castRay(in vec3 rayOrigin, in vec3 rayDirection) {
-    vec2 res = vec2(-1.0,-1.0);
+vec4 castRay(in vec3 rayOrigin, in vec3 rayDirection) {
+  vec2 res = vec2(-1.0,-1.0);
 
-    float tmin = 0.001;
-    float tmax = 20.0;
+  float tmin = 0.001;
+  float tmax = 20.0;
+  float t = tmin;
 
-    float t = tmin;
-
-    float lastDistance = 1e10;
-    float edge = 0.;
-
-    for(int i=0; i<256 && t<tmax; i++) {
-      vec2 h = map(rayOrigin + rayDirection*t);
-
-      if (lastDistance < 0.01 && h.x > lastDistance) {
-        edge = 1.;
-      }
-
-      if (h.x < tmin) {
-        res = vec2(t, h.y);
-        break;
-      }
-      t += h.x;
-      if (h.x < lastDistance) lastDistance = h.x;
+  vec2 lastH = vec2(1e10, 0.);
+  vec2 edge = vec2(0.); // boolean and material
+  float edgeWidth = 0.008;
+  for(int i=0; i<256 && t<tmax; i++) {
+    vec2 h = map(rayOrigin + rayDirection*t);
+    if (lastH.x < edgeWidth && h.x > lastH.x) {
+      edge = vec2(1., lastH.y); // is edge
     }
+    if (h.x < tmin) {
+      res = vec2(t, h.y);
+      break;
+    }
+    t += h.x;
+    if (h.x < lastH.x) {
+      lastH = h;
+    }
+  }
 
-    return vec3(res, edge);
+  return vec4(res, edge);
+}
+
+vec3 palette(float f) {
+  vec3 m = vec3(0.18);
+  if (f < 1.5) {
+    m = vec3(0.05, 0.1, 0.02); // ground
+  } else if (f < 2.5) {
+    m = vec3(0.2, 0.1, 0.02); // body
+  } else if (f < 3.5) {
+    m = vec3(0.4, 0.4, 0.4); // eye
+  } else if (f < 4.5) {
+    m = vec3(0.01); // apple
+  }
+  return m;
 }
 
 void main() {
@@ -230,23 +233,13 @@ void main() {
   vec3 col = max(vec3(0.), vec3(0.4, 0.75, 1.) - 0.7 * rayDirection.y);
   col = mix(col, vec3(0.7, 0.75, 0.8), min(exp(-10.*rayDirection.y), 1.));
 
-  vec3 tm = castRay(rayOrigin, rayDirection);
+  vec4 tm = castRay(rayOrigin, rayDirection);
   if (tm.y > 0.0) {
     float t = tm.x;
     vec3 pos = rayOrigin + rayDirection * t;
     vec3 nor = calcNormal(pos);
 
-    vec3 mate = vec3(0.18);
-
-    if (tm.y < 1.5) {
-      mate = vec3(0.05, 0.1, 0.02); // ground
-    } else if (tm.y < 2.5) {
-      mate = vec3(0.2, 0.1, 0.02); // body
-    } else if (tm.y < 3.5) {
-      mate = vec3(0.4, 0.4, 0.4); // eye
-    } else if (tm.y < 4.5) {
-      mate = vec3(0.01); // apple
-    }
+    vec3 mate = palette(tm.y);
 
     vec3 sunDirection = normalize(vec3(0.8*sin(time/5000.),0.4,0.8*cos(time/5000.)));
     float sunDiffuse = clamp(dot(nor, sunDirection), 0., 1.);
@@ -259,10 +252,11 @@ void main() {
     vec3 sky_col = vec3(0.5, 0.8, 0.9) * skyDiffuse;
     vec3 bounce_col = vec3(0.7, 0.3, 0.2) * bounceDiffuse;
     col =  clamp(mate * sun_col + mate * sky_col + mate * bounce_col, 0., 1.);
-    // col = vec3(sunShadow);
   }
+  col = vec3(1.);
   if (tm.z > 0.5) {
-    col = mix(vec3(0.), col, 0.1);
+    vec3 edgeMate = palette(tm.w);
+    col = mix(vec3(0.), edgeMate, .3);
   }
   col = pow(col, vec3(0.4545));
   fragColor = vec4(col, 1.);
