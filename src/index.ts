@@ -22,7 +22,7 @@ if (!gl) {
 }
 gl.viewport(0, 0, canvas.width, canvas.height)
 
-const camera = new ArcRotateCamera(vec3.fromValues(0, 0, 0), Math.PI / 2, Math.PI / 2, 3)
+const camera = new ArcRotateCamera(vec3.fromValues(0, 0.5, 0), Math.PI / 2, Math.PI / 2, 3)
 const di = new DesktopInput(canvas)
 const ti = new TouchInput(canvas)
 

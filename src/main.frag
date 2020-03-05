@@ -58,61 +58,6 @@ float sdRoundCone( vec3 p, float r1, float r2, float h )
   return dot(q, vec2(a,b) ) - r1;
 }
 
-// vec2 sdMon(in vec3 p) {
-//   vec2 res = vec2(0.);
-//   // float t = fract(time / 1000.);
-//   // float y = 4. * t * (1. - t);
-//   // float dy = 4.*(1.-2.*t);
-
-//   float ry = 1.; // 0.5 + 0.5*y;
-//   float rz = 1. / ry;
-//   vec3 radius = vec3(0.25 * rz, 0.25 * ry, 0.25 * rz);
-
-//   vec3 center = vec3(0., 0.5, 0.);
-//   vec3 h = p - center;
-//   vec3 sh = vec3(abs(h.x), h.yz); // symmetry in x axis
-
-//   // body
-//   float d = sdElipsoid(h, radius);
-
-//   // head
-//   float d2 = sdElipsoid(h - vec3(0., 0.28, 0.), vec3(0.2));
-//   float d3 = sdElipsoid(h - vec3(0., 0.28, -0.1), vec3(0.2));
-//   d2 = smin(d2, d3, 0.03);
-//   d = smin(d, d2, 0.1);
-
-//   // eyebrow
-//   vec3 eb = sh - vec3(0.12, 0.34, 0.15);
-//   eb.xy = (mat2(3, 4, -4, 3)/5.)*eb.xy;
-//   d2 = sdElipsoid(eb, vec3(0.06, 0.035, 0.05));
-//   d = smin(d, d2, 0.04);
-
-//   // mouse
-//   d2 = sdElipsoid(h-vec3(0., 0.175, 0.15), vec3(0.08, 0.035, 0.05));
-//   d = smax(d, -d2, 0.03);
-
-//   // ears
-//   d2 = sdStick(sh, vec3(0.1, 0.4, 0.), vec3(0.2, 0.55, 0.1), 0.01, 0.03);
-//   d = smin(d, d2, 0.03);
-
-//   res = vec2(d, 2.);
-
-//   // eye
-
-//   float d4 = sdSphere(sh - vec3(0.08, 0.28, 0.16), 0.05);
-//   if (d4 < d) {
-//     d = d4;
-//     res = vec2(d, 3.);
-//   }
-//   float d5 = sdSphere(sh - vec3(0.085, 0.28, 0.18), 0.032);
-//   if (d5 < d) {
-//     d = d5;
-//     res = vec2(d, 4.);
-//   }
-
-//   return res;
-// }
-
 vec2 sdLalafell(in vec3 p) {
   vec2 res = vec2(100., 2.);
 
@@ -247,13 +192,12 @@ void main() {
     float skyDiffuse = clamp(0.5 + 0.5 * dot(nor, vec3(0., 1., 0.)), 0., 1.);
     float bounceDiffuse = clamp(0.5 + 0.5 * dot(nor, vec3(0., -1., 0.)), 0., 1.);
 
-
     vec3 sun_col = vec3(7., 5., 3.) * sunDiffuse * sunShadow;
     vec3 sky_col = vec3(0.5, 0.8, 0.9) * skyDiffuse;
     vec3 bounce_col = vec3(0.7, 0.3, 0.2) * bounceDiffuse;
-    col =  clamp(mate * sun_col + mate * sky_col + mate * bounce_col, 0., 1.);
+    col = clamp(mate * sun_col + mate * sky_col + mate * bounce_col, 0., 1.);
   }
-  col = vec3(1.);
+  // col = vec3(1.);
   if (tm.z > 0.5) {
     vec3 edgeMate = palette(tm.w);
     col = mix(vec3(0.), edgeMate, .3);
