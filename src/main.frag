@@ -66,27 +66,30 @@ vec2 sdLalafell(in vec3 p) {
   vec3 sh = vec3(abs(h.x), h.yz);
 
   // neck
-  float neck = sdSegment(h-vec3(0., 0., -0.01), vec3(0., 0.83, 0.), vec3(0., 0.88, 0.))-0.036;
+  float neck = sdSegment(h, vec3(0., 0.86, 0.), vec3(0., .9, 0.))-0.04;
   // body
+  // vec3 rt =rotate(h-vec3(0., 0.62, 0.03), vec3(0.), vec3(1., 0., 0.), PI/18.);
   float body = sdRoundCone(
-    rotate(h-vec3(0., 0.62, 0.03), vec3(0.), vec3(1., 0., 0.), PI/18.),
-    0.135, 0.09, 0.16);
-  float cut1 = sdRoundCone(
-    rotate(h-vec3(0., 0.62, -0.05), vec3(0.), vec3(1., 0., 0.), -PI/24.),
-    0.135, 0.09, 0.16);
-  body = smax(cut1, body, 0.03);
+    h-vec3(0., 0.5, 0.),
+    0.15, 0.08, 0.29); // h=0.36
+  body = smax(body, sdSphere(h-vec3(0., 0.7, 0.), 0.26), 0.03);
+  body = smax(body, sdSegment(h - vec3(0., 0., 0.3), vec3(0., 1., 0.), vec3(0., 0., -0.02)) - .36, 0.07);
 
-  // head
-  float head = sdSphere(h-vec3(0., 1., 0.), 0.10);
-  res.x = smin(neck, min(head, body), 0.03);
+  float head = sdSphere(h-vec3(0., 1., 0.), 0.1);
+  res.x = smin(neck, min(head, body), 0.02);
 
   // leg0
-  float leg0 = sdSphere(sh-vec3(0.056, 0.555, -0.02), 0.08);
+  float leg0 = sdSphere(sh-vec3(1., 0.455, 0.01), 0.1);
   // leg1
-  float leg1 = sdRoundCone(
-    rotate(sh-vec3(0.075, 0.33, 0.), vec3(0.075, 0.33, 0.), vec3(1., 0., 0.), -PI/32.),
-    0.04, 0.065, 0.17);
-  res.x = smin(leg0, min(res.x, leg1), 0.02);
+  {
+    vec3 leg1pos = vec3(0.084, 0.28, 0.03);
+    vec3 rot = rotate(sh-leg1pos, leg1pos, vec3(1., 0., 0.), -PI/32.);
+    float leg1 = sdRoundCone(
+      sh-leg1pos,
+      0.058, 0.072, 0.22);
+    res.x = smin(leg0, min(res.x, leg1), 0.02);
+  }
+
   // leg2
 
 
@@ -99,7 +102,7 @@ vec2 opU(vec2 d1, vec2 d2) {
 // return x for distance, y for material
 vec2 map(in vec3 pos) {
   vec2 res = sdLalafell(pos);
-  vec2 plane = vec2(dot(pos, vec3(0., 1., 0.)) + 0.25, 1.);
+  vec2 plane = vec2(dot(pos, vec3(0., 1., 0.)), 1.);
   res = opU(res, plane);
   return res;
 }
